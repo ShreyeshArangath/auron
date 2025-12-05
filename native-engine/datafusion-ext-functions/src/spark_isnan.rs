@@ -62,7 +62,9 @@ pub fn spark_isnan(args: &[ColumnarValue]) -> Result<ColumnarValue> {
 mod test {
     use std::{error::Error, sync::Arc};
 
-    use arrow::array::{ArrayRef, BooleanArray, Float32Array, Float64Array};
+    use arrow::array::{
+        ArrayRef, BooleanArray, Float32Array, Float64Array, Int32Array, Int64Array, StringArray,
+    };
     use datafusion::{common::ScalarValue, logical_expr::ColumnarValue};
 
     use crate::spark_isnan::spark_isnan;
@@ -142,6 +144,106 @@ mod test {
     #[test]
     fn test_isnan_scalar_f32_null() -> Result<(), Box<dyn Error>> {
         let input_columnar_value = ColumnarValue::Scalar(ScalarValue::Float32(None));
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(1)?;
+        let expected: ArrayRef = Arc::new(BooleanArray::from(vec![Some(false)]));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_array_int32() -> Result<(), Box<dyn Error>> {
+        let input_data = vec![Some(1), Some(2), Some(0), None, Some(-100)];
+        let input_columnar_value = ColumnarValue::Array(Arc::new(Int32Array::from(input_data)));
+
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(5)?;
+
+        let expected_data = vec![
+            Some(false),
+            Some(false),
+            Some(false),
+            Some(false),
+            Some(false),
+        ];
+        let expected: ArrayRef = Arc::new(BooleanArray::from(expected_data));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_array_int64() -> Result<(), Box<dyn Error>> {
+        let input_data = vec![Some(1000i64), Some(-5000i64), None, Some(0i64)];
+        let input_columnar_value = ColumnarValue::Array(Arc::new(Int64Array::from(input_data)));
+
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(4)?;
+
+        let expected_data = vec![Some(false), Some(false), Some(false), Some(false)];
+        let expected: ArrayRef = Arc::new(BooleanArray::from(expected_data));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_array_string() -> Result<(), Box<dyn Error>> {
+        let input_data = vec![Some("hello"), Some("world"), None, Some("test")];
+        let input_columnar_value = ColumnarValue::Array(Arc::new(StringArray::from(input_data)));
+
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(4)?;
+
+        let expected_data = vec![Some(false), Some(false), Some(false), Some(false)];
+        let expected: ArrayRef = Arc::new(BooleanArray::from(expected_data));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_scalar_int32() -> Result<(), Box<dyn Error>> {
+        let input_columnar_value = ColumnarValue::Scalar(ScalarValue::Int32(Some(42)));
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(1)?;
+        let expected: ArrayRef = Arc::new(BooleanArray::from(vec![Some(false)]));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_scalar_int32_null() -> Result<(), Box<dyn Error>> {
+        let input_columnar_value = ColumnarValue::Scalar(ScalarValue::Int32(None));
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(1)?;
+        let expected: ArrayRef = Arc::new(BooleanArray::from(vec![Some(false)]));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_scalar_int64() -> Result<(), Box<dyn Error>> {
+        let input_columnar_value = ColumnarValue::Scalar(ScalarValue::Int64(Some(12345)));
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(1)?;
+        let expected: ArrayRef = Arc::new(BooleanArray::from(vec![Some(false)]));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_scalar_int64_null() -> Result<(), Box<dyn Error>> {
+        let input_columnar_value = ColumnarValue::Scalar(ScalarValue::Int64(None));
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(1)?;
+        let expected: ArrayRef = Arc::new(BooleanArray::from(vec![Some(false)]));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_scalar_string() -> Result<(), Box<dyn Error>> {
+        let input_columnar_value =
+            ColumnarValue::Scalar(ScalarValue::Utf8(Some("test".to_string())));
+        let result = spark_isnan(&vec![input_columnar_value])?.into_array(1)?;
+        let expected: ArrayRef = Arc::new(BooleanArray::from(vec![Some(false)]));
+        assert_eq!(&result, &expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_isnan_scalar_string_null() -> Result<(), Box<dyn Error>> {
+        let input_columnar_value = ColumnarValue::Scalar(ScalarValue::Utf8(None));
         let result = spark_isnan(&vec![input_columnar_value])?.into_array(1)?;
         let expected: ArrayRef = Arc::new(BooleanArray::from(vec![Some(false)]));
         assert_eq!(&result, &expected);
