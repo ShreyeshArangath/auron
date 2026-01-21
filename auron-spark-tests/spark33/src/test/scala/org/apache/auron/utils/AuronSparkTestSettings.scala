@@ -17,6 +17,7 @@
 package org.apache.auron.utils
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.execution.{AuronSparkBroadcastExchangeSuite, AuronSparkExchangeSuite, AuronSparkReuseExchangeAndSubquerySuite}
 
 class AuronSparkTestSettings extends SparkTestSettings {
   {
@@ -56,6 +57,14 @@ class AuronSparkTestSettings extends SparkTestSettings {
     .exclude("SPARK-20897: cached self-join should not fail")
     .exclude("SPARK-22271: mean overflows and returns null for some decimal variables")
     .exclude("SPARK-32764: -0.0 and 0.0 should be equal")
+
+  enableSuite[AuronSparkExchangeSuite]
+    // This test will re-run in AuronSparkExchangeSuite with shuffle partitions > 1
+    .exclude("Exchange reuse across the whole plan")
+
+  enableSuite[AuronSparkBroadcastExchangeSuite]
+
+  enableSuite[AuronSparkReuseExchangeAndSubquerySuite]
 
   // Will be implemented in the future.
   override def getSQLQueryTestSettings = new SQLQueryTestSettings {
