@@ -61,3 +61,7 @@ common/src/main/resources/auron-build-info.properties
 
 .flattened-pom.xml
 dependency-reduced-pom.xml
+
+# SBT
+project/target/
+project/project/
