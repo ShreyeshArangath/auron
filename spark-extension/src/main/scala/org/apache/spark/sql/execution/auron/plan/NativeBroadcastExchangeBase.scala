@@ -23,9 +23,9 @@ import java.util.concurrent.Future
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
 
-import scala.collection.JavaConverters._
 import scala.collection.immutable.SortedMap
 import scala.concurrent.Promise
+import scala.jdk.CollectionConverters._
 
 import org.apache.commons.lang3.reflect.MethodUtils
 import org.apache.spark.OneToOneDependency
@@ -268,7 +268,7 @@ abstract class NativeBroadcastExchangeBase(mode: BroadcastMode, override val chi
     }
   }
 
-  @sparkver("4.1")
+  @sparkver("4.0 / 4.1")
   private def getRelationFuture = {
     SQLExecution.withThreadLocalCaptured[Broadcast[Any]](
       this.session.sqlContext.sparkSession,

@@ -65,3 +65,6 @@ dependency-reduced-pom.xml
 # SBT
 project/target/
 project/project/
+
+#lsp
+*.prefs

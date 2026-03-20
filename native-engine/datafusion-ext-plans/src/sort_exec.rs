@@ -209,7 +209,7 @@ impl ExecutionPlan for SortExec {
 
     fn statistics(&self) -> Result<Statistics> {
         Statistics::with_fetch(
-            self.input.statistics()?,
+            self.input.partition_statistics(None)?,
             self.schema(),
             self.limit,
             self.offset,
@@ -718,7 +718,7 @@ impl ExternalSorter {
             if !in_mem_blocks.is_empty() {
                 let mut merger = Merger::try_new(self.clone(), in_mem_blocks)?;
                 if self.skip > 0 {
-                    merger.skip_rows::<InMemRowsKeyCollector>(self.skip, output_batch_size);
+                    let _ = merger.skip_rows::<InMemRowsKeyCollector>(self.skip, output_batch_size);
                 }
                 while let Some((key_collector, pruned_batch)) =
                     merger.next::<InMemRowsKeyCollector>(output_batch_size)?
@@ -744,7 +744,7 @@ impl ExternalSorter {
         let spill_blocks = spills.into_iter().map(|spill| spill.block).collect();
         let mut merger = Merger::try_new(self.to_arc(), spill_blocks)?;
         if self.skip > 0 {
-            merger.skip_rows::<InMemRowsKeyCollector>(self.skip, output_batch_size);
+            let _ = merger.skip_rows::<InMemRowsKeyCollector>(self.skip, output_batch_size);
         }
         while let Some((key_collector, pruned_batch)) =
             merger.next::<InMemRowsKeyCollector>(output_batch_size)?
@@ -1454,6 +1454,7 @@ mod test {
         prelude::SessionContext,
     };
 
+    use super::common_prefix_len;
     use crate::sort_exec::SortExec;
 
     fn build_table_i32(
@@ -1490,6 +1491,21 @@ mod test {
             schema,
             None,
         )?))
+    }
+
+    // Verify that `common_prefix_len` correctly computes prefixes of small fixed
+    // sizes. This ensures compiler optimizations do not incorrectly transform
+    // the function for small lengths.
+    #[test]
+    fn has_common_prefix_len_been_optimized_into_bogusness() {
+        let cpl = common_prefix_len(&[0; 8], &[0; 8]);
+        assert_eq!(cpl, 8);
+        let cpl = common_prefix_len(&[0; 4], &[0; 4]);
+        assert_eq!(cpl, 4);
+        let cpl = common_prefix_len(&[0; 2], &[0; 2]);
+        assert_eq!(cpl, 2);
+        let cpl = common_prefix_len(&[0; 1], &[0; 1]);
+        assert_eq!(cpl, 1);
     }
 
     #[tokio::test]
@@ -1564,6 +1580,7 @@ mod test {
 
 #[cfg(test)]
 mod fuzztest {
+    #![allow(deprecated)]
     use std::{sync::Arc, time::Instant};
 
     use arrow::{

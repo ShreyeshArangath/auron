@@ -27,7 +27,7 @@ use arrow::{
 };
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use datafusion::{
-    common::{ExprSchema, Result, ScalarValue, stats::Precision},
+    common::{Result, ScalarValue, stats::Precision},
     datasource::{
         file_format::file_compression_type::FileCompressionType,
         listing::{FileRange, PartitionedFile},
@@ -40,7 +40,7 @@ use datafusion::{
         expressions::{LikeExpr, SCAndExpr, SCOrExpr, in_list},
     },
     physical_plan::{
-        ColumnStatistics, ExecutionPlan, PhysicalExpr, Statistics, expressions as phys_expr,
+        ColumnStatistics, ExecutionPlan, Statistics, expressions as phys_expr,
         expressions::{
             BinaryExpr, CaseExpr, CastExpr, Column, IsNotNullExpr, IsNullExpr, Literal,
             NegativeExpr, NotExpr, PhysicalSortExpr,
@@ -52,7 +52,9 @@ use datafusion::{
 use datafusion_ext_exprs::{
     bloom_filter_might_contain::BloomFilterMightContainExpr, cast::TryCastExpr,
     get_indexed_field::GetIndexedFieldExpr, get_map_value::GetMapValueExpr,
-    named_struct::NamedStructExpr, row_num::RowNumExpr, spark_partition_id::SparkPartitionIdExpr,
+    named_struct::NamedStructExpr, row_num::RowNumExpr,
+    spark_monotonically_increasing_id::SparkMonotonicallyIncreasingIdExpr,
+    spark_partition_id::SparkPartitionIdExpr,
     spark_scalar_subquery_wrapper::SparkScalarSubqueryWrapperExpr,
     spark_udf_wrapper::SparkUDFWrapperExpr, string_contains::StringContainsExpr,
     string_ends_with::StringEndsWithExpr, string_starts_with::StringStartsWithExpr,
@@ -70,6 +72,7 @@ use datafusion_ext_plans::{
     expand_exec::ExpandExec,
     ffi_reader_exec::FFIReaderExec,
     filter_exec::FilterExec,
+    flink::kafka_scan_exec::KafkaScanExec,
     generate::{create_generator, create_udtf_generator},
     generate_exec::GenerateExec,
     ipc_reader_exec::IpcReaderExec,
@@ -799,6 +802,19 @@ impl PhysicalPlanner {
                     props,
                 )))
             }
+            PhysicalPlanType::KafkaScan(kafka_scan) => {
+                let schema = Arc::new(convert_required!(kafka_scan.schema)?);
+                Ok(Arc::new(KafkaScanExec::new(
+                    kafka_scan.kafka_topic.clone(),
+                    kafka_scan.kafka_properties_json.clone(),
+                    schema,
+                    kafka_scan.batch_size as i32,
+                    kafka_scan.startup_mode,
+                    kafka_scan.auron_operator_id.clone(),
+                    kafka_scan.data_format,
+                    kafka_scan.format_config_json.clone(),
+                )))
+            }
         }
     }
 
@@ -972,6 +988,9 @@ impl PhysicalPlanner {
             ExprType::RowNumExpr(_) => Arc::new(RowNumExpr::default()),
             ExprType::SparkPartitionIdExpr(_) => {
                 Arc::new(SparkPartitionIdExpr::new(self.partition_id))
+            }
+            ExprType::MonotonicIncreasingIdExpr(_) => {
+                Arc::new(SparkMonotonicallyIncreasingIdExpr::new(self.partition_id))
             }
             ExprType::BloomFilterMightContainExpr(e) => Arc::new(BloomFilterMightContainExpr::new(
                 e.uuid.clone(),

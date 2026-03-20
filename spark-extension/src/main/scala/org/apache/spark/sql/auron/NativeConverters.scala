@@ -21,8 +21,8 @@ import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.math.max
 import scala.math.min
 
@@ -542,6 +542,14 @@ object NativeConverters extends Logging {
             pb.PhysicalNot
               .newBuilder()
               .setExpr(convertExprWithFallback(child, isPruningExpr, fallback))
+              .build())
+        }
+      case unaryMinus: UnaryMinus =>
+        buildExprNode {
+          _.setNegative(
+            pb.PhysicalNegativeNode
+              .newBuilder()
+              .setExpr(convertExprWithFallback(unaryMinus.child, isPruningExpr, fallback))
               .build())
         }
 
